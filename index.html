@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Practice">
+<meta name="theme-color" content="#1d2b33">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" href="icon-192.png">
+<title>Practice Tracker</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
+<style>
+  :root{
+    --bg:#f4f5f7; --card:#ffffff; --ink:#1d2b33; --sub:#6b7680; --line:#e4e7eb;
+    --accent:#264653;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;}
+  #app{max-width:520px;margin:0 auto;min-height:100vh;display:flex;flex-direction:column;
+    padding-top:env(safe-area-inset-top);padding-bottom:calc(64px + env(safe-area-inset-bottom));}
+  header{position:sticky;top:0;background:var(--accent);color:#fff;z-index:5;
+    padding:14px 16px 12px;padding-top:calc(14px + env(safe-area-inset-top));box-shadow:0 2px 6px rgba(0,0,0,.15);}
+  header h1{margin:0 0 8px;font-size:19px;font-weight:700;letter-spacing:.2px;}
+  .date-nav{display:flex;align-items:center;gap:8px;}
+  .date-nav button{background:rgba(255,255,255,.15);border:none;color:#fff;border-radius:8px;
+    width:34px;height:34px;font-size:16px;}
+  .date-nav .datelabel{flex:1;text-align:center;font-size:14px;font-weight:600;}
+  .date-nav input[type=date]{background:rgba(255,255,255,.15);border:none;color:#fff;border-radius:8px;
+    padding:6px 4px;font-size:12px;}
+  .date-nav .todaybtn{font-size:11px;padding:0 8px;width:auto;}
+  main{flex:1;padding:12px 12px 8px;}
+  section{display:none;}
+  section.active{display:block;}
+  .card{background:var(--card);border-radius:14px;padding:12px 14px;margin-bottom:10px;
+    box-shadow:0 1px 3px rgba(0,0,0,.06);border-left:6px solid var(--cat-color,#ccc);}
+  .card .catname{font-weight:600;font-size:14.5px;margin-bottom:6px;}
+  .card .row{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:6px;}
+  .total-today{font-size:13px;color:var(--sub);}
+  .timerbtn{border:none;border-radius:10px;padding:9px 16px;font-size:14px;font-weight:700;color:#fff;
+    background:var(--cat-color,#666);min-width:78px;}
+  .timerbtn.running{background:#c0392b;}
+  .timer-display{font-variant-numeric:tabular-nums;font-size:13px;color:var(--sub);min-width:52px;text-align:right;}
+  .manual-add{display:flex;gap:6px;align-items:center;}
+  .manual-add input{width:64px;border:1px solid var(--line);border-radius:8px;padding:7px 8px;font-size:14px;}
+  .manual-add button{border:none;border-radius:8px;padding:8px 12px;background:var(--line);color:var(--ink);font-size:13px;font-weight:600;}
+  .goalbar{height:6px;border-radius:4px;background:var(--line);margin-top:8px;overflow:hidden;}
+  .goalbar-fill{height:100%;background:var(--cat-color,#666);}
+  .goaltext{font-size:11px;color:var(--sub);margin-top:3px;}
+  .entrieslist{margin-top:4px;}
+  .entryrow{display:flex;align-items:center;gap:8px;padding:8px 4px;border-bottom:1px solid var(--line);font-size:13.5px;}
+  .entryrow:last-child{border-bottom:none;}
+  .dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
+  .entryrow .ename{flex:1;color:var(--sub);}
+  .entryrow .emin{font-weight:600;}
+  .delbtn{border:none;background:none;color:#c0392b;font-size:16px;padding:2px 6px;}
+  h3.sectiontitle{font-size:14px;color:var(--sub);margin:14px 4px 6px;text-transform:uppercase;letter-spacing:.4px;}
+  .subtabs{display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap;}
+  .subtabs button{flex:1;min-width:56px;border:1px solid var(--line);background:#fff;border-radius:10px;
+    padding:8px 4px;font-size:12.5px;font-weight:600;color:var(--sub);}
+  .subtabs button.active{background:var(--accent);color:#fff;border-color:var(--accent);}
+  .chartnav{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
+  .chartnav button{border:1px solid var(--line);background:#fff;border-radius:8px;width:32px;height:32px;font-size:15px;}
+  .chartnav .rangelabel{font-size:13px;font-weight:600;color:var(--sub);}
+  .chartwrap{background:var(--card);border-radius:14px;padding:12px;box-shadow:0 1px 3px rgba(0,0,0,.06);}
+  .piemode{display:flex;gap:10px;margin-bottom:10px;align-items:center;}
+  .piemode label{font-size:13px;display:flex;align-items:center;gap:4px;}
+  .piemode input[type=date],.piemode input[type=month]{border:1px solid var(--line);border-radius:8px;padding:6px 8px;font-size:13px;}
+  .pietotal{text-align:center;font-size:15px;font-weight:700;margin:6px 0 10px;}
+  .legend{margin-top:10px;}
+  .legendrow{display:flex;align-items:center;gap:8px;padding:6px 2px;font-size:13px;}
+  .legendrow .lname{flex:1;color:var(--ink);}
+  .legendrow .lmin{color:var(--sub);font-weight:600;}
+  .goalrow{background:var(--card);border-radius:12px;padding:12px 14px;margin-bottom:8px;
+    display:flex;align-items:center;gap:10px;box-shadow:0 1px 3px rgba(0,0,0,.06);border-left:6px solid var(--cat-color,#ccc);}
+  .goalrow .gname{flex:1;font-size:13.5px;font-weight:600;}
+  .goalrow input{width:64px;border:1px solid var(--line);border-radius:8px;padding:7px 8px;font-size:14px;text-align:right;}
+  .goalrow .unit{font-size:12px;color:var(--sub);}
+  nav.tabbar{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid var(--line);
+    display:flex;padding-bottom:env(safe-area-inset-bottom);max-width:520px;margin:0 auto;}
+  nav.tabbar button{flex:1;border:none;background:none;padding:10px 4px 8px;font-size:11px;color:var(--sub);font-weight:600;}
+  nav.tabbar button .ico{display:block;font-size:19px;margin-bottom:2px;}
+  nav.tabbar button.active{color:var(--accent);}
+  canvas{max-height:280px;}
+  .hint{font-size:12px;color:var(--sub);text-align:center;margin:8px 0 2px;}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <header>
+    <h1 id="headerTitle">Practice Tracker</h1>
+    <div class="date-nav" id="logDateNav">
+      <button data-action="prevday">‹</button>
+      <input type="date" id="dateInput">
+      <div class="datelabel" id="dateLabel"></div>
+      <button data-action="nextday">›</button>
+      <button class="todaybtn" data-action="today">Today</button>
+    </div>
+  </header>
+
+  <main>
+    <section id="view-log">
+      <div id="categoryCards"></div>
+      <h3 class="sectiontitle">Entries for this day</h3>
+      <div class="card" style="border-left-color:var(--line)">
+        <div class="entrieslist" id="entriesList"></div>
+      </div>
+    </section>
+
+    <section id="view-charts">
+      <div class="subtabs" id="chartSubtabs">
+        <button data-subtab="day">Day</button>
+        <button data-subtab="week">Week</button>
+        <button data-subtab="month">Month</button>
+        <button data-subtab="year">Year</button>
+        <button data-subtab="pie">Pie</button>
+      </div>
+
+      <div id="barControls" class="chartnav">
+        <button data-action="chart-prev">‹</button>
+        <div class="rangelabel" id="rangeLabel"></div>
+        <button data-action="chart-next">›</button>
+      </div>
+      <div id="barWrap" class="chartwrap">
+        <canvas id="barCanvas"></canvas>
+      </div>
+
+      <div id="pieWrap" style="display:none;">
+        <div class="piemode">
+          <label><input type="radio" name="pieMode" value="week" checked> Week of</label>
+          <input type="date" id="pieDateInput">
+          <label><input type="radio" name="pieMode" value="month"> Month</label>
+          <input type="month" id="pieMonthInput" style="display:none;">
+        </div>
+        <div class="chartwrap">
+          <div class="pietotal" id="pieTotal"></div>
+          <canvas id="pieCanvas"></canvas>
+          <div class="legend" id="pieLegend"></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="view-goals">
+      <div class="hint">Set a weekly target (minutes) for any category you want to keep an eye on. Leave at 0 for no target.</div>
+      <div id="goalRows"></div>
+    </section>
+  </main>
+
+  <nav class="tabbar">
+    <button data-tab="log"><span class="ico">&#9202;</span>Log</button>
+    <button data-tab="charts"><span class="ico">&#128202;</span>Charts</button>
+    <button data-tab="goals"><span class="ico">&#127919;</span>Goals</button>
+  </nav>
+</div>
+
+<script>
+(function(){
+"use strict";
+
+/* ---------- Data ---------- */
+const CATEGORIES = [
+  {id:1, name:"Bass Warm-Up and Technique",     color:"#E63946"},
+  {id:2, name:"Swing Bass",                     color:"#F4A261"},
+  {id:3, name:"Vocal Warm-Up",                  color:"#E9C46A"},
+  {id:4, name:"Guitar Fretboard and Soloing",   color:"#2A9D8F"},
+  {id:5, name:"Guitar Jam and Vocals",          color:"#457B9D"},
+  {id:6, name:"Swing Guitar (with Singing)",    color:"#8AB17D"},
+  {id:7, name:"Coffeehouse Guitar and Singing", color:"#6D597A"},
+  {id:8, name:"Theory and Score Study",         color:"#B56576"},
+  {id:9, name:"Piano and other",                color:"#264653"}
+];
+
+const LS_ENTRIES="pt_entries", LS_GOALS="pt_goals", LS_TIMER="pt_timer";
+
+function loadEntries(){ try{return JSON.parse(localStorage.getItem(LS_ENTRIES))||[];}catch(e){return [];} }
+function saveEntries(e){ localStorage.setItem(LS_ENTRIES, JSON.stringify(e)); }
+function loadGoals(){ try{return JSON.parse(localStorage.getItem(LS_GOALS))||{};}catch(e){return {};} }
+function saveGoals(g){ localStorage.setItem(LS_GOALS, JSON.stringify(g)); }
+function loadTimer(){ try{return JSON.parse(localStorage.getItem(LS_TIMER))||null;}catch(e){return null;} }
+function saveTimer(t){ if(t) localStorage.setItem(LS_TIMER, JSON.stringify(t)); else localStorage.removeItem(LS_TIMER); }
+
+let entries = loadEntries();
+let goals = loadGoals();
+let activeTimer = loadTimer();
+
+function uid(){ return (crypto.randomUUID ? crypto.randomUUID() : 'id-'+Date.now()+'-'+Math.random().toString(16).slice(2)); }
+
+function addEntry(dateStr, catId, minutes){
+  entries.push({id:uid(), date:dateStr, categoryId:catId, minutes:Math.round(minutes*10)/10});
+  saveEntries(entries);
+}
+function deleteEntry(id){
+  entries = entries.filter(e=>e.id!==id);
+  saveEntries(entries);
+}
+
+/* ---------- Date helpers (all local, string based YYYY-MM-DD) ---------- */
+function pad2(n){ return n.toString().padStart(2,'0'); }
+function dateToStr(d){ return d.getFullYear()+'-'+pad2(d.getMonth()+1)+'-'+pad2(d.getDate()); }
+function strToDate(s){ const p=s.split('-').map(Number); return new Date(p[0], p[1]-1, p[2]); }
+function todayStr(){ return dateToStr(new Date()); }
+function addDaysStr(s,n){ const d=strToDate(s); d.setDate(d.getDate()+n); return dateToStr(d); }
+function mondayOfStr(s){ const d=strToDate(s); const day=d.getDay(); const diff=(day===0?-6:1-day); d.setDate(d.getDate()+diff); return dateToStr(d); }
+function sundayOfStr(s){ return addDaysStr(mondayOfStr(s),6); }
+function monthKeyOf(s){ return s.slice(0,7); }
+function yearKeyOf(s){ return s.slice(0,4); }
+function firstOfMonth(mk){ return mk+'-01'; }
+function lastOfMonth(mk){ const p=mk.split('-').map(Number); const d=new Date(p[0], p[1], 0); return dateToStr(d); }
+function shiftMonthKey(mk, n){ const p=mk.split('-').map(Number); const d=new Date(p[0], p[1]-1+n, 1); return d.getFullYear()+'-'+pad2(d.getMonth()+1); }
+const MONTHS_SHORT=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+function dayShortLabel(s){ const d=strToDate(s); return MONTHS_SHORT[d.getMonth()]+' '+d.getDate(); }
+function monthShortLabel(mk){ const p=mk.split('-').map(Number); return MONTHS_SHORT[p[1]-1]+' '+p[0]; }
+
+function fmtHeaderDate(s){
+  const d=strToDate(s);
+  const days=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+  return (s===todayStr()?'Today — ':'')+days[d.getDay()]+', '+MONTHS_SHORT[d.getMonth()]+' '+d.getDate();
+}
+function fmtMin(total){
+  total = Math.round(total*10)/10;
+  if(total<=0) return '0m';
+  const h=Math.floor(total/60);
+  const m=Math.round(total-h*60);
+  if(h>0) return h+'h '+(m>0?pad2(m)+'m':'0m');
+  return (Math.round(total*10)/10)+'m';
+}
+
+/* ---------- Aggregation ---------- */
+function entriesInRange(start,end){
+  return entries.filter(e=> e.date>=start && e.date<=end);
+}
+function totalsByCategory(list){
+  const t={}; CATEGORIES.forEach(c=>t[c.id]=0);
+  list.forEach(e=>{ t[e.categoryId]=(t[e.categoryId]||0)+e.minutes; });
+  return t;
+}
+
+/* ---------- App / UI state ---------- */
+let currentTab='log';
+let selectedDate=todayStr();
+let currentSubtab='day';
+let dailyEndDate=todayStr();      // window of 14 days ending here
+let weeklyEndMonday=mondayOfStr(todayStr()); // window of 12 weeks ending here
+let monthlyEndKey=monthKeyOf(todayStr());    // window of 12 months ending here
+let pieMode='week';
+let pieDate=todayStr();
+let pieMonth=monthKeyOf(todayStr());
+
+let barChart=null, pieChart=null;
+let tickHandle=null;
+
+/* ---------- Rendering: tabs ---------- */
+function setTab(tab){
+  currentTab=tab;
+  document.querySelectorAll('nav.tabbar button').forEach(b=> b.classList.toggle('active', b.dataset.tab===tab));
+  document.getElementById('view-log').classList.toggle('active', tab==='log');
+  document.getElementById('view-charts').classList.toggle('active', tab==='charts');
+  document.getElementById('view-goals').classList.toggle('active', tab==='goals');
+  document.getElementById('logDateNav').style.display = (tab==='log') ? 'flex' : 'none';
+  document.getElementById('headerTitle').textContent = tab==='log' ? 'Practice Tracker' : (tab==='charts' ? 'Charts' : 'Weekly Goals');
+  if(tab==='charts') renderCharts();
+  if(tab==='goals') renderGoals();
+  if(tab==='log') renderLog();
+}
+
+/* ---------- Rendering: Log view ---------- */
+function renderLog(){
+  document.getElementById('dateInput').value=selectedDate;
+  document.getElementById('dateLabel').textContent=fmtHeaderDate(selectedDate);
+
+  const dayEntries = entries.filter(e=>e.date===selectedDate);
+  const dayTotals = totalsByCategory(dayEntries);
+
+  const weekStart=mondayOfStr(todayStr()), weekEnd=sundayOfStr(todayStr());
+  const weekTotals = totalsByCategory(entriesInRange(weekStart, weekEnd));
+
+  const cardsHtml = CATEGORIES.map(cat=>{
+    const isRunning = activeTimer && activeTimer.categoryId===cat.id;
+    const liveMinutes = isRunning ? (Date.now()-activeTimer.start)/60000 : 0;
+    const displayTotal = dayTotals[cat.id] + (isRunning ? liveMinutes : 0);
+    const goal = goals[cat.id]||0;
+    let goalHtml='';
+    if(goal>0){
+      const pct = Math.min(100, Math.round((weekTotals[cat.id]/goal)*100));
+      goalHtml = '<div class="goalbar"><div class="goalbar-fill" style="width:'+pct+'%"></div></div>'+
+        '<div class="goaltext">'+fmtMin(weekTotals[cat.id])+' / '+fmtMin(goal)+' this week</div>';
+    }
+    return '<div class="card" style="--cat-color:'+cat.color+'">'+
+      '<div class="catname">'+cat.name+'</div>'+
+      '<div class="row">'+
+        '<div class="total-today">Today: <b>'+fmtMin(displayTotal)+'</b></div>'+
+        '<div style="display:flex;align-items:center;gap:8px;">'+
+          (isRunning ? '<span class="timer-display" data-tick-cat="'+cat.id+'">'+fmtClock(liveMinutes)+'</span>' : '')+
+          '<button class="timerbtn'+(isRunning?' running':'')+'" data-action="'+(isRunning?'stop':'start')+'" data-catid="'+cat.id+'" style="--cat-color:'+cat.color+'">'+(isRunning?'Stop':'Start')+'</button>'+
+        '</div>'+
+      '</div>'+
+      '<div class="row manual-add">'+
+        '<input type="number" min="0" step="1" placeholder="min" id="manual-'+cat.id+'">'+
+        '<button data-action="add" data-catid="'+cat.id+'">+ Add</button>'+
+      '</div>'+
+      goalHtml+
+    '</div>';
+  }).join('');
+  document.getElementById('categoryCards').innerHTML = cardsHtml;
+
+  const listHtml = dayEntries.length ? dayEntries.map(e=>{
+    const cat = CATEGORIES.find(c=>c.id===e.categoryId);
+    return '<div class="entryrow"><span class="dot" style="background:'+cat.color+'"></span>'+
+      '<span class="ename">'+cat.name+'</span>'+
+      '<span class="emin">'+fmtMin(e.minutes)+'</span>'+
+      '<button class="delbtn" data-action="delete" data-entryid="'+e.id+'">&times;</button></div>';
+  }).join('') : '<div class="hint">No entries yet for this day.</div>';
+  document.getElementById('entriesList').innerHTML = listHtml;
+
+  manageTicking();
+}
+
+function fmtClock(minutesFloat){
+  const totalSec = Math.round(minutesFloat*60);
+  const m = Math.floor(totalSec/60), s = totalSec%60;
+  return pad2(m)+':'+pad2(s);
+}
+
+function manageTicking(){
+  if(tickHandle){ clearInterval(tickHandle); tickHandle=null; }
+  if(activeTimer && currentTab==='log'){
+    tickHandle=setInterval(()=>{
+      const el=document.querySelector('[data-tick-cat="'+activeTimer.categoryId+'"]');
+      if(el){ el.textContent = fmtClock((Date.now()-activeTimer.start)/60000); }
+      const totEl = document.getElementById('categoryCards');
+      // lightly refresh the "Today" total text for the running category only
+      const card = totEl.querySelectorAll('.card')[CATEGORIES.findIndex(c=>c.id===activeTimer.categoryId)];
+      if(card){
+        const dayEntries = entries.filter(e=>e.date===selectedDate && e.categoryId===activeTimer.categoryId);
+        const base = totalsByCategory(dayEntries)[activeTimer.categoryId];
+        const live = (Date.now()-activeTimer.start)/60000;
+        const totalEl = card.querySelector('.total-today b');
+        if(totalEl) totalEl.textContent = fmtMin(base+live);
+      }
+    }, 1000);
+  }
+}
+
+/* ---------- Timer actions ---------- */
+function startTimer(catId){
+  if(activeTimer){ stopTimer(); }
+  activeTimer = {categoryId:catId, start: Date.now()};
+  saveTimer(activeTimer);
+  renderLog();
+}
+function stopTimer(){
+  if(!activeTimer) return;
+  const elapsedMin = (Date.now()-activeTimer.start)/60000;
+  if(elapsedMin >= 0.05){ addEntry(todayStr(), activeTimer.categoryId, elapsedMin); }
+  activeTimer=null;
+  saveTimer(null);
+  renderLog();
+}
+
+/* ---------- Charts ---------- */
+function setSubtab(st){
+  currentSubtab=st;
+  document.querySelectorAll('#chartSubtabs button').forEach(b=>b.classList.toggle('active', b.dataset.subtab===st));
+  document.getElementById('barControls').style.display = (st==='pie') ? 'none':'flex';
+  document.getElementById('barWrap').style.display = (st==='pie') ? 'none':'block';
+  document.getElementById('pieWrap').style.display = (st==='pie') ? 'block':'none';
+  renderCharts();
+}
+
+function renderCharts(){
+  if(currentSubtab==='pie'){ renderPie(); return; }
+
+  let labels=[], datasets, rangeLabel='';
+  if(currentSubtab==='day'){
+    const dates=[]; for(let i=13;i>=0;i--) dates.push(addDaysStr(dailyEndDate,-i));
+    labels = dates.map(dayShortLabel);
+    datasets = CATEGORIES.map(cat=>({label:cat.name, backgroundColor:cat.color,
+      data: dates.map(d=> totalsByCategory(entries.filter(e=>e.date===d))[cat.id]) }));
+    rangeLabel = dayShortLabel(dates[0])+' – '+dayShortLabel(dates[dates.length-1]);
+  } else if(currentSubtab==='week'){
+    const mondays=[]; for(let i=11;i>=0;i--) mondays.push(addDaysStr(weeklyEndMonday,-7*i));
+    labels = mondays.map(m=>'Wk '+dayShortLabel(m));
+    datasets = CATEGORIES.map(cat=>({label:cat.name, backgroundColor:cat.color,
+      data: mondays.map(m=>{ const list=entriesInRange(m, addDaysStr(m,6)); return totalsByCategory(list)[cat.id]; }) }));
+    rangeLabel = dayShortLabel(mondays[0])+' – '+dayShortLabel(addDaysStr(mondays[mondays.length-1],6));
+  } else if(currentSubtab==='month'){
+    const mks=[]; for(let i=11;i>=0;i--) mks.push(shiftMonthKey(monthlyEndKey,-i));
+    labels = mks.map(monthShortLabel);
+    datasets = CATEGORIES.map(cat=>({label:cat.name, backgroundColor:cat.color,
+      data: mks.map(mk=>{ const list=entriesInRange(firstOfMonth(mk), lastOfMonth(mk)); return totalsByCategory(list)[cat.id]; }) }));
+    rangeLabel = monthShortLabel(mks[0])+' – '+monthShortLabel(mks[mks.length-1]);
+  } else if(currentSubtab==='year'){
+    const years = new Set(entries.map(e=>yearKeyOf(e.date)));
+    years.add(yearKeyOf(todayStr()));
+    let yrs = Array.from(years).sort();
+    if(yrs.length<1) yrs=[yearKeyOf(todayStr())];
+    labels = yrs;
+    datasets = CATEGORIES.map(cat=>({label:cat.name, backgroundColor:cat.color,
+      data: yrs.map(y=>{ const list=entriesInRange(y+'-01-01', y+'-12-31'); return totalsByCategory(list)[cat.id]; }) }));
+    rangeLabel = yrs[0]+' – '+yrs[yrs.length-1];
+    document.querySelector('#barControls button[data-action="chart-prev"]').style.visibility='hidden';
+    document.querySelector('#barControls button[data-action="chart-next"]').style.visibility='hidden';
+  }
+  if(currentSubtab!=='year'){
+    document.querySelectorAll('#barControls button').forEach(b=>b.style.visibility='visible');
+  }
+  document.getElementById('rangeLabel').textContent = rangeLabel;
+
+  const ctx = document.getElementById('barCanvas').getContext('2d');
+  if(barChart) barChart.destroy();
+  barChart = new Chart(ctx, {
+    type:'bar',
+    data:{labels, datasets},
+    options:{
+      responsive:true,
+      plugins:{legend:{display:false}, tooltip:{mode:'index', intersect:false,
+        callbacks:{label:(c)=> c.dataset.label+': '+fmtMin(c.raw)} }},
+      scales:{ x:{stacked:true}, y:{stacked:true, ticks:{callback:(v)=>fmtMin(v)}} }
+    }
+  });
+}
+
+function chartNav(dir){
+  if(currentSubtab==='day') dailyEndDate = addDaysStr(dailyEndDate, dir*14);
+  else if(currentSubtab==='week') weeklyEndMonday = addDaysStr(weeklyEndMonday, dir*7*12);
+  else if(currentSubtab==='month') monthlyEndKey = shiftMonthKey(monthlyEndKey, dir*12);
+  renderCharts();
+}
+
+function renderPie(){
+  document.getElementById('pieDateInput').style.display = pieMode==='week' ? 'inline-block':'none';
+  document.getElementById('pieMonthInput').style.display = pieMode==='month' ? 'inline-block':'none';
+  document.getElementById('pieDateInput').value = pieDate;
+  document.getElementById('pieMonthInput').value = pieMonth;
+
+  let start, end, label;
+  if(pieMode==='week'){
+    start = mondayOfStr(pieDate); end = sundayOfStr(pieDate);
+    label = 'Week of '+dayShortLabel(start)+' – '+dayShortLabel(end);
+  } else {
+    start = firstOfMonth(pieMonth); end = lastOfMonth(pieMonth);
+    label = monthShortLabel(pieMonth);
+  }
+  const totals = totalsByCategory(entriesInRange(start,end));
+  const grand = Object.values(totals).reduce((a,b)=>a+b,0);
+  document.getElementById('pieTotal').textContent = label+' — Total: '+fmtMin(grand);
+
+  const catsWithTime = CATEGORIES.filter(c=>totals[c.id]>0);
+  const ctx=document.getElementById('pieCanvas').getContext('2d');
+  if(pieChart) pieChart.destroy();
+  if(catsWithTime.length===0){
+    document.getElementById('pieLegend').innerHTML='<div class="hint">No practice logged in this period yet.</div>';
+    return;
+  }
+  pieChart = new Chart(ctx, {
+    type:'pie',
+    data:{ labels: catsWithTime.map(c=>c.name),
+      datasets:[{ data: catsWithTime.map(c=>totals[c.id]), backgroundColor: catsWithTime.map(c=>c.color) }] },
+    options:{ plugins:{ legend:{display:false},
+      tooltip:{ callbacks:{ label:(c)=> c.label+': '+fmtMin(c.raw)+' ('+Math.round(c.raw/grand*100)+'%)' } } } }
+  });
+  document.getElementById('pieLegend').innerHTML = CATEGORIES.map(c=>{
+    if(totals[c.id]<=0) return '';
+    const pct = grand>0 ? Math.round(totals[c.id]/grand*100) : 0;
+    return '<div class="legendrow"><span class="dot" style="background:'+c.color+'"></span>'+
+      '<span class="lname">'+c.name+'</span><span class="lmin">'+fmtMin(totals[c.id])+' ('+pct+'%)</span></div>';
+  }).join('');
+}
+
+/* ---------- Goals view ---------- */
+function renderGoals(){
+  document.getElementById('goalRows').innerHTML = CATEGORIES.map(cat=>{
+    const g = goals[cat.id]||0;
+    return '<div class="goalrow" style="--cat-color:'+cat.color+'">'+
+      '<div class="gname">'+cat.name+'</div>'+
+      '<input type="number" min="0" step="5" value="'+g+'" data-goalcat="'+cat.id+'">'+
+      '<div class="unit">min/wk</div></div>';
+  }).join('');
+}
+
+/* ---------- Event delegation ---------- */
+document.addEventListener('click', function(e){
+  const tabBtn = e.target.closest('[data-tab]');
+  if(tabBtn){ setTab(tabBtn.dataset.tab); return; }
+
+  const subtabBtn = e.target.closest('[data-subtab]');
+  if(subtabBtn){ setSubtab(subtabBtn.dataset.subtab); return; }
+
+  const actionEl = e.target.closest('[data-action]');
+  if(!actionEl) return;
+  const action = actionEl.dataset.action;
+
+  if(action==='prevday'){ selectedDate=addDaysStr(selectedDate,-1); renderLog(); }
+  else if(action==='nextday'){ selectedDate=addDaysStr(selectedDate,1); renderLog(); }
+  else if(action==='today'){ selectedDate=todayStr(); renderLog(); }
+  else if(action==='start'){ startTimer(Number(actionEl.dataset.catid)); }
+  else if(action==='stop'){ stopTimer(); }
+  else if(action==='add'){
+    const catId=Number(actionEl.dataset.catid);
+    const input=document.getElementById('manual-'+catId);
+    const val=parseFloat(input.value);
+    if(val>0){ addEntry(selectedDate, catId, val); input.value=''; renderLog(); }
+  }
+  else if(action==='delete'){ deleteEntry(actionEl.dataset.entryid); renderLog(); }
+  else if(action==='chart-prev'){ chartNav(-1); }
+  else if(action==='chart-next'){ chartNav(1); }
+});
+
+document.getElementById('dateInput').addEventListener('change', function(e){
+  if(e.target.value){ selectedDate=e.target.value; renderLog(); }
+});
+
+document.querySelectorAll('input[name="pieMode"]').forEach(r=>{
+  r.addEventListener('change', function(e){ pieMode=e.target.value; renderPie(); });
+});
+document.getElementById('pieDateInput').addEventListener('change', function(e){
+  if(e.target.value){ pieDate=e.target.value; renderPie(); }
+});
+document.getElementById('pieMonthInput').addEventListener('change', function(e){
+  if(e.target.value){ pieMonth=e.target.value; renderPie(); }
+});
+document.getElementById('goalRows').addEventListener('change', function(e){
+  const inp=e.target.closest('[data-goalcat]');
+  if(inp){ goals[inp.dataset.goalcat]=parseFloat(inp.value)||0; saveGoals(goals); renderLog(); }
+});
+
+/* ---------- Init ---------- */
+setTab('log');
+window.addEventListener('visibilitychange', ()=>{ if(!document.hidden) renderLog(); });
+
+if('serviceWorker' in navigator){
+  window.addEventListener('load', ()=>{ navigator.serviceWorker.register('sw.js').catch(()=>{}); });
+}
+
+})();
+</script>
+</body>
+</html>
