@@ -1,6 +1,6 @@
 // Bump CACHE_NAME any time index.html (or other cached assets) changes,
 // so returning users pick up the update instead of a stale cached copy.
-const CACHE_NAME = 'practice-tracker-v1';
+const CACHE_NAME = 'practice-tracker-v2';
 const ASSETS = [
   './',
   './index.html',
@@ -8,6 +8,7 @@ const ASSETS = [
   './apple-touch-icon.png',
   './icon-192.png',
   './icon-512.png',
+  './quotes.json',
   'https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js'
 ];
 

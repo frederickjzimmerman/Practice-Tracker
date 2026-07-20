@@ -90,6 +90,10 @@
   .goalring-sub{font-size:12px;color:var(--sub);margin-top:2px;text-align:center;padding:0 8px;}
   .goalring-setrow{display:flex;align-items:center;justify-content:center;gap:6px;margin-top:6px;font-size:13px;color:var(--sub);}
   .goalring-setrow input{width:64px;border:1px solid var(--line);border-radius:8px;padding:6px 8px;font-size:14px;text-align:center;}
+  .quotecard{text-align:center;}
+  .quotecard .qtext{font-style:italic;font-size:14.5px;line-height:1.5;}
+  .quotecard .qauthor{margin-top:8px;font-size:13px;font-weight:700;}
+  .quotecard .qsource{margin-top:2px;font-size:11px;color:var(--sub);}
 </style>
 </head>
 <body>
@@ -108,6 +112,7 @@
 
   <main>
     <section id="view-log">
+      <div class="card quotecard" id="quoteCard" style="border-left-color:var(--accent);"></div>
       <div id="categoryCards"></div>
       <h3 class="sectiontitle">Entries for this day</h3>
       <div class="card" style="border-left-color:var(--line)">
@@ -196,6 +201,34 @@ let goals = loadGoals();
 let activeTimer = loadTimer();
 let dailyGoal = loadDailyGoal();
 
+/* ---------- Quote of the day ---------- */
+let QUOTES = [];
+function hashStr(s){
+  // Jenkins one-at-a-time hash: gives well-scrambled, non-sequential
+  // output even for near-identical input strings like consecutive dates.
+  let h = 0;
+  for(let i=0;i<s.length;i++){
+    h += s.charCodeAt(i);
+    h += (h << 10);
+    h ^= (h >>> 6);
+  }
+  h += (h << 3);
+  h ^= (h >>> 11);
+  h += (h << 15);
+  return Math.abs(h|0);
+}
+function renderQuoteCard(){
+  const card = document.getElementById('quoteCard');
+  if(!card) return;
+  if(!QUOTES.length){ card.innerHTML=''; return; }
+  const q = QUOTES[hashStr(todayStr()) % QUOTES.length];
+  card.innerHTML =
+    '<div class="qtext">“'+q.text+'”</div>'+
+    '<div class="qauthor">— '+q.author+'</div>'+
+    (q.source ? '<div class="qsource">'+q.source+'</div>' : '');
+}
+fetch('quotes.json').then(r=>r.json()).then(data=>{ QUOTES=data; renderQuoteCard(); }).catch(()=>{});
+
 function uid(){ return (crypto.randomUUID ? crypto.randomUUID() : 'id-'+Date.now()+'-'+Math.random().toString(16).slice(2)); }
 
 function addEntry(dateStr, catId, minutes){
@@ -273,7 +306,7 @@ function setTab(tab){
   document.getElementById('headerTitle').textContent = tab==='log' ? 'Practice Tracker' : (tab==='charts' ? 'Charts' : 'Weekly Goals');
   if(tab==='charts') renderCharts();
   if(tab==='goals') renderGoals();
-  if(tab==='log') renderLog();
+  if(tab==='log'){ renderLog(); renderQuoteCard(); }
 }
 
 /* ---------- Rendering: Log view ---------- */
