@@ -86,6 +86,10 @@
   nav.tabbar button.active{color:var(--accent);}
   canvas{max-height:280px;}
   .hint{font-size:12px;color:var(--sub);text-align:center;margin:8px 0 2px;}
+  .goalring-pct{font-size:28px;font-weight:800;line-height:1.1;}
+  .goalring-sub{font-size:12px;color:var(--sub);margin-top:2px;text-align:center;padding:0 8px;}
+  .goalring-setrow{display:flex;align-items:center;justify-content:center;gap:6px;margin-top:6px;font-size:13px;color:var(--sub);}
+  .goalring-setrow input{width:64px;border:1px solid var(--line);border-radius:8px;padding:6px 8px;font-size:14px;text-align:center;}
 </style>
 </head>
 <body>
@@ -109,6 +113,8 @@
       <div class="card" style="border-left-color:var(--line)">
         <div class="entrieslist" id="entriesList"></div>
       </div>
+
+      <div class="card" id="dailyGoalCard" style="border-left-color:var(--accent);"></div>
     </section>
 
     <section id="view-charts">
@@ -174,7 +180,7 @@ const CATEGORIES = [
   {id:9, name:"Piano and other",                color:"#264653"}
 ];
 
-const LS_ENTRIES="pt_entries", LS_GOALS="pt_goals", LS_TIMER="pt_timer";
+const LS_ENTRIES="pt_entries", LS_GOALS="pt_goals", LS_TIMER="pt_timer", LS_DAILY_GOAL="pt_dailyGoal";
 
 function loadEntries(){ try{return JSON.parse(localStorage.getItem(LS_ENTRIES))||[];}catch(e){return [];} }
 function saveEntries(e){ localStorage.setItem(LS_ENTRIES, JSON.stringify(e)); }
@@ -182,10 +188,13 @@ function loadGoals(){ try{return JSON.parse(localStorage.getItem(LS_GOALS))||{};
 function saveGoals(g){ localStorage.setItem(LS_GOALS, JSON.stringify(g)); }
 function loadTimer(){ try{return JSON.parse(localStorage.getItem(LS_TIMER))||null;}catch(e){return null;} }
 function saveTimer(t){ if(t) localStorage.setItem(LS_TIMER, JSON.stringify(t)); else localStorage.removeItem(LS_TIMER); }
+function loadDailyGoal(){ const v=parseFloat(localStorage.getItem(LS_DAILY_GOAL)); return isNaN(v)?0:v; }
+function saveDailyGoal(v){ localStorage.setItem(LS_DAILY_GOAL, String(v)); }
 
 let entries = loadEntries();
 let goals = loadGoals();
 let activeTimer = loadTimer();
+let dailyGoal = loadDailyGoal();
 
 function uid(){ return (crypto.randomUUID ? crypto.randomUUID() : 'id-'+Date.now()+'-'+Math.random().toString(16).slice(2)); }
 
@@ -316,7 +325,76 @@ function renderLog(){
   }).join('') : '<div class="hint">No entries yet for this day.</div>';
   document.getElementById('entriesList').innerHTML = listHtml;
 
+  let dayGrandTotal = Object.values(dayTotals).reduce((a,b)=>a+b,0);
+  if(activeTimer){
+    dayGrandTotal += (Date.now()-activeTimer.start)/60000;
+  }
+  renderDailyGoalCard(dayGrandTotal);
+
   manageTicking();
+}
+
+/* ---------- Daily goal ring ---------- */
+const RING_SIZE=140, RING_R=58, RING_SW=14;
+const RING_CIRC = 2*Math.PI*RING_R;
+const RING_COLOR_MET="#2a9d3f", RING_COLOR_PROGRESS="#264653";
+
+function computeRingState(total){
+  const goal = dailyGoal;
+  const fraction = goal>0 ? total/goal : 0;
+  const mod = fraction % 1;
+  const lapFraction = fraction<=0 ? 0 : (mod===0 ? 1 : mod);
+  const met = fraction>=1;
+  return { fraction, lapFraction, met, color: met?RING_COLOR_MET:RING_COLOR_PROGRESS };
+}
+
+function renderDailyGoalCard(total){
+  const container = document.getElementById('dailyGoalCard');
+  const {fraction, lapFraction, met, color} = computeRingState(total);
+  const dashoffset = (RING_CIRC*(1-lapFraction)).toFixed(2);
+  const pctText = dailyGoal>0 ? Math.round(fraction*100)+'%' : '—';
+  const subText = dailyGoal>0 ? (fmtMin(total)+' / '+fmtMin(dailyGoal)) : 'Set a daily goal below to track it';
+
+  const svg = '<svg width="'+RING_SIZE+'" height="'+RING_SIZE+'" viewBox="0 0 '+RING_SIZE+' '+RING_SIZE+'">'+
+      '<circle cx="'+(RING_SIZE/2)+'" cy="'+(RING_SIZE/2)+'" r="'+RING_R+'" fill="none" stroke="#e4e7eb" stroke-width="'+RING_SW+'"/>'+
+      '<circle id="dailyRingProgress" cx="'+(RING_SIZE/2)+'" cy="'+(RING_SIZE/2)+'" r="'+RING_R+'" fill="none" '+
+        'stroke-width="'+RING_SW+'" stroke-linecap="round" stroke-dasharray="'+RING_CIRC.toFixed(2)+'" '+
+        'transform="rotate(-90 '+(RING_SIZE/2)+' '+(RING_SIZE/2)+')" '+
+        'style="stroke:'+color+';stroke-dashoffset:'+dashoffset+';transition:stroke-dashoffset .3s ease, stroke .3s ease;"/>'+
+    '</svg>';
+
+  container.innerHTML =
+    '<div class="catname" style="text-align:center;">Today’s Practice Goal</div>'+
+    '<div style="position:relative;display:flex;justify-content:center;margin:8px 0 4px;">'+
+      svg+
+      '<div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;">'+
+        '<div class="goalring-pct" id="goalringPct" style="'+(met?'color:'+RING_COLOR_MET+';':'')+'">'+pctText+'</div>'+
+        '<div class="goalring-sub" id="goalringSub">'+subText+'</div>'+
+      '</div>'+
+    '</div>'+
+    (met ? '<div style="text-align:center;color:'+RING_COLOR_MET+';font-weight:700;font-size:13px;margin-bottom:4px;">'+
+        '\u{1F389} Goal met'+(fraction>=2?' — '+fraction.toFixed(1)+'× today!':'')+'</div>' : '')+
+    '<div class="goalring-setrow">'+
+      '\u{1F3AF} Daily goal: <input type="number" min="0" step="5" id="dailyGoalInput" value="'+(dailyGoal||'')+'" placeholder="e.g. 60"> min'+
+    '</div>';
+}
+
+function updateDailyRingLive(total){
+  const {lapFraction, met, color} = computeRingState(total);
+  const circle = document.getElementById('dailyRingProgress');
+  if(circle){
+    circle.style.stroke = color;
+    circle.style.strokeDashoffset = (RING_CIRC*(1-lapFraction)).toFixed(2);
+  }
+  const pctEl = document.getElementById('goalringPct');
+  if(pctEl){
+    pctEl.textContent = dailyGoal>0 ? Math.round((total/dailyGoal)*100)+'%' : '—';
+    pctEl.style.color = met ? RING_COLOR_MET : '';
+  }
+  const subEl = document.getElementById('goalringSub');
+  if(subEl){
+    subEl.textContent = dailyGoal>0 ? (fmtMin(total)+' / '+fmtMin(dailyGoal)) : 'Set a daily goal below to track it';
+  }
 }
 
 function fmtClock(minutesFloat){
@@ -341,6 +419,9 @@ function manageTicking(){
         const totalEl = card.querySelector('.total-today b');
         if(totalEl) totalEl.textContent = fmtMin(base+live);
       }
+      const freshDayTotals = totalsByCategory(entries.filter(e=>e.date===selectedDate));
+      const grand = Object.values(freshDayTotals).reduce((a,b)=>a+b,0) + live;
+      updateDailyRingLive(grand);
     }, 1000);
   }
 }
@@ -526,6 +607,13 @@ document.getElementById('pieMonthInput').addEventListener('change', function(e){
 document.getElementById('goalRows').addEventListener('change', function(e){
   const inp=e.target.closest('[data-goalcat]');
   if(inp){ goals[inp.dataset.goalcat]=parseFloat(inp.value)||0; saveGoals(goals); renderLog(); }
+});
+document.getElementById('view-log').addEventListener('change', function(e){
+  if(e.target && e.target.id==='dailyGoalInput'){
+    dailyGoal = parseFloat(e.target.value)||0;
+    saveDailyGoal(dailyGoal);
+    renderLog();
+  }
 });
 
 /* ---------- Init ---------- */
